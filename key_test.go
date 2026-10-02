@@ -654,4 +654,42 @@ ENDPOINT = https://%(ACCOUNT_ID)s.r2.cloudflarestorage.com
 
 		assert.Equal(t, "https://abc123.r2.cloudflarestorage.com", f.Section("").Key("ENDPOINT").String())
 	})
+
+	t.Run("circular reference between keys should not stack overflow", func(t *testing.T) {
+		f, err := Load([]byte(`
+[s]
+a = %(b)s
+b = %(a)s
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(a)s", f.Section("s").Key("a").String())
+		assert.Equal(t, "%(b)s", f.Section("s").Key("b").String())
+	})
+
+	t.Run("self-reference in default section should not stack overflow", func(t *testing.T) {
+		f, err := Load([]byte(`
+a = %(a)s
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(a)s", f.Section("").Key("a").String())
+	})
+
+	t.Run("three-way circular reference should not stack overflow", func(t *testing.T) {
+		f, err := Load([]byte(`
+[s]
+a = %(b)s
+b = %(c)s
+c = %(a)s
+`))
+		require.NoError(t, err)
+		require.NotNil(t, f)
+
+		assert.Equal(t, "%(a)s", f.Section("s").Key("a").String())
+		assert.Equal(t, "%(b)s", f.Section("s").Key("b").String())
+		assert.Equal(t, "%(c)s", f.Section("s").Key("c").String())
+	})
 }

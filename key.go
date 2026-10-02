@@ -138,8 +138,25 @@ func (k *Key) NestedValues() []string {
 	return k.nestedValues
 }
 
+func hasVisitedKey(visited []*Key, k *Key) bool {
+	for _, v := range visited {
+		if v == k {
+			return true
+		}
+	}
+	return false
+}
+
 // transformValue takes a raw value and transforms to its final string.
 func (k *Key) transformValue(val string) string {
+	return k.transformValueWithVisited(val, []*Key{k})
+}
+
+func (k *Key) transformValueWithVisited(val string, visited []*Key) string {
+	if len(visited) > depthValues {
+		return val
+	}
+
 	if k.s.f.ValueMapper != nil {
 		val = k.s.f.ValueMapper(val)
 	}
@@ -169,8 +186,16 @@ func (k *Key) transformValue(val string) string {
 			}
 		}
 
+		if hasVisitedKey(visited, nk) {
+			break
+		}
+
 		// Substitute by new value and take off leading '%(' and trailing ')s'.
-		val = strings.ReplaceAll(val, vr, nk.String())
+		res := nk.transformValueWithVisited(nk.value, append(visited, nk))
+		val = strings.ReplaceAll(val, vr, res)
+		if strings.Contains(res, vr) {
+			break
+		}
 	}
 	return val
 }
